@@ -1,0 +1,62 @@
+{
+  "name": "larp",
+  "productName": "LARP",
+  "version": "0.3.0",
+  "description": "A cinematic agent control room wrapped around the real Claude Code CLI.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "demo": "electron . --demo",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:linux": "electron-builder --linux"
+  },
+  "keywords": [
+    "claude-code",
+    "terminal",
+    "dashboard",
+    "electron",
+    "agent"
+  ],
+  "author": "Lekiwii",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/addon-web-links": "^0.12.0",
+    "@xterm/xterm": "^6.0.0",
+    "node-pty": "^1.1.0"
+  },
+  "devDependencies": {
+    "electron": "^45.3.1",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "dev.larp.agentcontrol",
+    "productName": "LARP",
+    "asarUnpack": [
+      "node_modules/node-pty/**"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.developer-tools"
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Development"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Lekiwii/larp.git"
+  },
+  "homepage": "https://github.com/Lekiwii/larp"
+}

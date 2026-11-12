@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:">
+<title>LARP / AGENT.CONTROL</title>
+<link rel="stylesheet" href="../node_modules/@xterm/xterm/css/xterm.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body data-theme="signal">
+
+<header id="topbar">
+  <div class="brand"><i class="cursor"></i><b>LARP</b><span class="sep">/</span>AGENT.CONTROL <span class="dim" id="app-ver"></span><span id="demo-badge" hidden>DEMO</span></div>
+  <div class="stats">
+    <span>TURNS <b id="s-turns">0</b></span>
+    <span>TOOLS <b id="s-tools">0</b></span>
+    <span>EDITS <b id="s-edits">0</b></span>
+    <span>AGENTS <b id="s-agents">0</b></span>
+    <span>TOKENS <b id="s-tokens">0</b></span>
+    <span>T <b id="s-time">00:00</b></span>
+    <span>FRAME <b id="s-frame">0</b></span>
+  </div>
+  <nav>
+    <button id="b-new" title="Start a fresh Claude Code session in this folder">NEW</button>
+    <button id="b-cont" title="Continue the most recent session in this folder">CONTINUE</button>
+    <button id="b-repo" title="Choose the project folder">OPEN REPO</button>
+    <button id="b-view" title="Terminal only, terminal + 3D graph, or graph only">VIEW</button>
+    <button id="b-theme" title="Cycle the colour theme">THEME</button>
+    <span id="live" class="live"><i></i><em>BOOT</em></span>
+  </nav>
+</header>
+
+<div id="subbar">
+  <span>THE REAL CLAUDE CODE CLI · YOUR OWN LOGIN · EVERYTHING STAYS ON THIS MACHINE</span>
+  <span id="sub-right"></span>
+</div>
+
+<main id="stage">
+  <canvas id="field"></canvas>
+  <svg id="wires" aria-hidden="true"></svg>
+
+  <section class="col left">
+    <div class="node" data-node="repo" style="--hdr:var(--h1)">
+      <div class="node-hd"><span>REPO</span><i class="port out"></i></div>
+      <div class="row"><span class="k">PATH</span><span class="v" id="repo-path">—</span><i class="port out"></i></div>
+      <div class="row"><span class="k">BRANCH</span><span class="v" id="repo-branch">—</span><i class="port out"></i></div>
+      <div class="row"><span class="k">REMOTE</span><span class="v" id="repo-remote">—</span><i class="port out"></i></div>
+      <div class="row"><span class="k">DIRTY</span><span class="v" id="repo-dirty">—</span><i class="port out"></i></div>
+      <div class="row"><span class="k">HEAD</span><span class="v" id="repo-last">—</span><i class="port out"></i></div>
+    </div>
+
+    <div class="node" data-node="session" style="--hdr:var(--h2)">
+      <div class="node-hd"><span>SESSION</span><i class="port out"></i></div>
+      <div class="row"><span class="k">STATUS</span><span class="v" id="ses-status">—</span><i class="port out"></i></div>
+      <div class="row"><span class="k">ID</span><span class="v" id="ses-id">—</span><i class="port out"></i></div>
+      <div class="row"><span class="k">CLI</span><span class="v" id="ses-cli">—</span><i class="port out"></i></div>
+      <div class="row"><span class="k">MODE</span><span class="v" id="ses-mode">—</span><i class="port out"></i></div>
+      <div class="row"><span class="k">UPTIME</span><span class="v" id="ses-up">—</span><i class="port out"></i></div>
+    </div>
+
+    <div class="node" data-node="tasks" style="--hdr:var(--h3)">
+      <div class="node-hd"><span>TASKS / PLAN</span><span class="hd-n" id="tasks-n">0/0</span><i class="port out"></i></div>
+      <div class="list" id="tasks"></div>
+    </div>
+
+    <div class="node" data-node="host" style="--hdr:var(--h4)">
+      <div class="node-hd"><span>HOST</span><span class="hd-n" id="host-pty"></span><i class="port out"></i></div>
+      <div class="row"><span class="k">CPU</span><span class="meter"><i id="host-cpu-bar"></i></span><span class="v n" id="host-cpu">—</span><i class="port out"></i></div>
+      <div class="row"><span class="k">MEM</span><span class="meter"><i id="host-mem-bar"></i></span><span class="v n" id="host-mem">—</span><i class="port out"></i></div>
+    </div>
+
+    <div class="node grow" data-node="core" style="--hdr:var(--h5)">
+      <div class="node-hd"><span>CORE / LOAD</span><span class="hd-n" id="core-n">0%</span><i class="port out"></i></div>
+      <canvas id="core" class="viz"></canvas>
+    </div>
+  </section>
+
+  <section id="center">
+    <div class="node term-node" id="term-node" data-node="agent">
+      <div class="node-hd"><span>CLAUDE CODE / LIVE TERMINAL</span><span class="hd-n" id="term-size"></span></div>
+      <div id="term-wrap"><div id="term"></div></div>
+    </div>
+    <div class="node graph-node" id="graph-node" data-node="graph">
+      <div class="node-hd">
+        <span class="tabs" id="scene-tabs">
+          <button data-scene="graph" title="The repo as a force-directed graph">GRAPH</button>
+          <button data-scene="city" title="Files as buildings: height is file size">CITY</button>
+          <button data-scene="helix" title="The session as a spiral timeline">HELIX</button>
+          <button data-scene="orbit" title="Tools orbiting the agent">ORBIT</button>
+        </span>
+        <span class="hd-n" id="graph-n"></span>
+      </div>
+      <div id="graph-wrap">
+        <canvas id="graph" class="scene3d"></canvas>
+        <canvas id="city" class="scene3d"></canvas>
+        <canvas id="helix" class="scene3d"></canvas>
+        <canvas id="orbit" class="scene3d"></canvas>
+        <div id="graph-tip" hidden></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="col right">
+    <div class="node" data-node="context" style="--hdr:var(--h6)">
+      <div class="node-hd"><i class="port in"></i><span>CONTEXT</span></div>
+      <div class="row"><i class="port in"></i><span class="k">MODEL</span><span class="v" id="ctx-model">—</span></div>
+      <div class="row"><i class="port in"></i><span class="k">WINDOW</span><span class="meter"><i id="ctx-bar"></i></span><span class="v n" id="ctx-size">—</span></div>
+      <div class="row"><i class="port in"></i><span class="k">OUTPUT</span><span class="v" id="ctx-out">—</span></div>
+      <div class="row"><i class="port in"></i><span class="k">CACHE HIT</span><span class="v" id="ctx-cache">—</span></div>
+    </div>
+
+    <div class="node" data-node="tools" style="--hdr:var(--h1)">
+      <div class="node-hd"><i class="port in"></i><span>TOOLS</span><span class="hd-n" id="tools-run"></span></div>
+      <div class="row"><i class="port in"></i><span class="k">READ</span><span class="v" id="t-READ">0</span></div>
+      <div class="row"><i class="port in"></i><span class="k">EDIT</span><span class="v" id="t-EDIT">0</span></div>
+      <div class="row"><i class="port in"></i><span class="k">SHELL</span><span class="v" id="t-SHELL">0</span></div>
+      <div class="row"><i class="port in"></i><span class="k">SEARCH</span><span class="v" id="t-SEARCH">0</span></div>
+      <div class="row"><i class="port in"></i><span class="k">WEB</span><span class="v" id="t-WEB">0</span></div>
+      <div class="row"><i class="port in"></i><span class="k">MCP</span><span class="v" id="t-MCP">0</span></div>
+    </div>
+
+    <div class="node" data-node="agents" style="--hdr:var(--h5)">
+      <div class="node-hd"><i class="port in"></i><span>SUBAGENTS</span><span class="hd-n" id="agents-n">0</span></div>
+      <div class="list" id="agents"></div>
+    </div>
+
+    <div class="node" data-node="files" style="--hdr:var(--h7)">
+      <div class="node-hd"><i class="port in"></i><span>FILES / DIFF</span><span class="hd-n" id="files-n">+0 −0</span></div>
+      <div class="list" id="files"></div>
+    </div>
+
+    <div class="node grow" data-node="terrain" style="--hdr:var(--h4)">
+      <div class="node-hd"><i class="port in"></i><span>ACTIVITY / TERRAIN</span><span class="hd-n">LAST 18 S</span></div>
+      <canvas id="terrain" class="viz"></canvas>
+    </div>
+  </section>
+</main>
+
+<div id="trace">
+  <div class="trace-hd"><span>SESSION TRACE · TRANSCRIPT BUS</span><span id="trace-stats">EVENTS/MIN 0</span></div>
+  <canvas id="trace-cv"></canvas>
+</div>
+
+<section id="bottom">
+  <div class="panel">
+    <h3>SESSION LOG</h3>
+    <div class="log" id="log"></div>
+  </div>
+  <div class="panel">
+    <h3>TOOLS / STATUS</h3>
+    <div id="toolbars"></div>
+    <div id="checks"></div>
+  </div>
+  <div class="panel">
+    <h3>METRICS</h3>
+    <div id="metrics"></div>
+    <canvas id="hist"></canvas>
+  </div>
+</section>
+
+<footer id="foot">
+  <span>ANY FOLDER · THE AGENT IN THE MIDDLE IS THE REAL CLI · THE DASHBOARD ONLY READS</span>
+  <span id="foot-right"></span>
+</footer>
+
+<div id="boot"><pre id="boot-log"></pre></div>
+
+<script src="../node_modules/@xterm/xterm/lib/xterm.js"></script>
+<script src="../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
+<script src="../node_modules/@xterm/addon-web-links/lib/addon-web-links.js"></script>
+<script src="field.js"></script>
+<script src="wires.js"></script>
+<script src="graph3d.js"></script>
+<script src="scenes3d.js"></script>
+<script src="widgets.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
