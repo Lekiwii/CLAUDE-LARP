@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('larp', {
   setTheme: (theme) => ipcRenderer.send('larp:theme', theme),
   setView: (view) => ipcRenderer.send('larp:view', view),
   setScene: (scene) => ipcRenderer.send('larp:scene', scene),
+  progress: (state) => ipcRenderer.send('larp:progress', state),
   scan: () => ipcRenderer.invoke('larp:scan'),
   copy: (text) => ipcRenderer.send('larp:clipboard-write', text),
   openExternal: (url) => ipcRenderer.send('larp:open-external', url),

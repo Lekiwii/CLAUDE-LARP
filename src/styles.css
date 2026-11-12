@@ -317,3 +317,24 @@ body[data-scene="helix"] #helix, body[data-scene="orbit"] #orbit { display: bloc
 }
 .tabs button:hover { background: transparent; color: inherit; opacity: 1; }
 .tabs button.on { background: var(--term-bg); color: var(--term-fg); opacity: 1; }
+
+/* ================= v0.4: request loader in the sub-bar ================= */
+#tagline { overflow: hidden; text-overflow: ellipsis; }
+body.working #tagline { display: none; }
+#loader { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+#loader[hidden] { display: none; }
+#ld-tag { flex: none; min-width: 104px; color: var(--warn); }
+#ld-tag::before {
+  content: ""; display: inline-block; width: 6px; height: 9px; margin-right: 7px; vertical-align: -1px;
+  background: var(--warn); animation: blink .7s steps(1) infinite;
+}
+#ld-bar { flex: 1 1 160px; max-width: 520px; min-width: 60px; height: 8px; }
+#ld-info {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--fg); text-transform: none; letter-spacing: .02em;
+}
+#loader.done #ld-tag { color: var(--ok); }
+#loader.done #ld-tag::before { background: var(--ok); animation: none; }
+#loader.stopped #ld-tag { color: var(--err); }
+#loader.stopped #ld-tag::before { background: var(--err); animation: none; }
+@media (prefers-reduced-motion: reduce) { #ld-tag::before { animation: none; } }

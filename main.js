@@ -419,6 +419,7 @@ function createWindow() {
   win.on('closed', () => {
     win = null;
   });
+  win.on('focus', () => win.flashFrame(false));
   if (flag('devtools')) win.webContents.openDevTools({ mode: 'detach' });
 
   // --screenshot=<file.png>: capture the window after a few seconds and quit.
@@ -522,6 +523,18 @@ ipcMain.on('larp:scene', (_e, v) => {
 });
 
 ipcMain.handle('larp:scan', () => scanRepo(session ? session.cwd : cfg.cwd || os.homedir()));
+
+// Taskbar feedback for the request in flight: 'busy' = working (indeterminate),
+// a 0..1 number = plan progress, 'done' = finished (flash if LARP is not in front).
+ipcMain.on('larp:progress', (_e, p) => {
+  if (!win || win.isDestroyed()) return;
+  if (p === 'busy') win.setProgressBar(2);
+  else if (typeof p === 'number' && p > 0 && p <= 1) win.setProgressBar(p);
+  else {
+    win.setProgressBar(-1);
+    if (p === 'done' && !win.isFocused()) win.flashFrame(true);
+  }
+});
 
 ipcMain.on('larp:clipboard-write', (_e, text) => clipboard.writeText(String(text || '')));
 

@@ -70,6 +70,7 @@
   let git = null;
   let dirty = true;
   let replaying = false; // true while a resumed session's history is being loaded
+  let turn = null; // the request in flight: { t0, t1, steps, last, done, stopped, doneAt }
   let exitShownFor = 0;
   let S = fresh();
 
@@ -147,6 +148,96 @@
 
   const traceCv = $('trace-cv');
   const histCv = $('hist');
+  const ldCv = $('ld-bar');
+
+  /* ---------- request loader: takes the tagline's place while Claude works ---------- */
+
+  function startTurn() {
+    turn = { t0: Date.now(), t1: 0, steps: 0, last: '', done: false, stopped: false, doneAt: 0, sent: -1 };
+    $('loader').hidden = false;
+    $('loader').classList.remove('done', 'stopped');
+    document.body.classList.add('working');
+    sizeCanvas(ldCv);
+    updateLoader();
+  }
+
+  function dropTurn() {
+    turn = null;
+    $('loader').hidden = true;
+    document.body.classList.remove('working');
+    larp.progress('idle');
+  }
+
+  /** The request is answered (or was stopped): show the result a moment, then give the line back. */
+  function endTurn(stopped) {
+    if (!turn || turn.done) return;
+    turn.done = true;
+    turn.stopped = !!stopped;
+    turn.t1 = Date.now();
+    turn.doneAt = performance.now();
+    $('loader').classList.add(stopped ? 'stopped' : 'done');
+    larp.progress(stopped ? 'idle' : 'done');
+    updateLoader();
+    const mine = turn;
+    setTimeout(() => {
+      if (turn === mine) dropTurn();
+    }, 1800);
+  }
+
+  function planRatio() {
+    return S.tasks.length ? S.tasks.filter((t) => t.s === 'completed').length / S.tasks.length : 0;
+  }
+
+  function updateLoader() {
+    if (!turn) return;
+    const parts = [];
+    if (!turn.done && turn.last) parts.push(turn.last.length > 46 ? turn.last.slice(0, 45) + '…' : turn.last);
+    parts.push(`STEP ${turn.steps}`);
+    if (S.tasks.length) parts.push(`PLAN ${S.tasks.filter((t) => t.s === 'completed').length}/${S.tasks.length}`);
+    parts.push(span((turn.done ? turn.t1 : Date.now()) - turn.t0));
+    $('ld-tag').textContent = turn.done ? (turn.stopped ? 'STOPPED' : 'DONE') : S.status;
+    $('ld-info').textContent = parts.join('  ·  ');
+    if (!turn.done) {
+      const p = planRatio();
+      if (p !== turn.sent) {
+        turn.sent = p;
+        larp.progress(p > 0 ? p : 'busy'); // with a plan, the taskbar shows real progress
+      }
+    }
+  }
+
+  /** Segmented bar: plan progress fills from the left, a comet of light sweeps while working. */
+  function drawLoader(now) {
+    if (!turn || !ldCv.cssW) return;
+    const g = ldCv.getContext('2d');
+    const w = ldCv.cssW;
+    const h = ldCv.cssH;
+    const ink = css('--ink');
+    const hot = css('--ink-hot');
+    const cell = 5;
+    const gap = 2;
+    const n = Math.max(4, Math.floor((w + gap) / (cell + gap)));
+    const filled = turn.done ? (turn.stopped ? 0 : n) : Math.floor(planRatio() * n);
+    const trail = Math.max(6, Math.round(n * 0.24));
+    const head = reducedMotion ? -1 : (now / 34) % (n + trail);
+    const flash = turn.done && !turn.stopped ? 0.55 + 0.45 * Math.abs(Math.cos((now - turn.doneAt) / 130)) : 0;
+    g.clearRect(0, 0, w, h);
+    for (let i = 0; i < n; i++) {
+      let a = i < filled ? 0.85 : 0.16;
+      let lit = false;
+      const d = head - i;
+      if (!turn.done && d >= 0 && d < trail) {
+        a = Math.max(a, 1 - d / trail);
+        lit = true;
+      }
+      if (flash) {
+        a = flash;
+        lit = true;
+      }
+      g.fillStyle = `rgba(${lit ? hot : ink},${a})`;
+      g.fillRect(i * (cell + gap), 0, cell, h);
+    }
+  }
 
   function sizeCanvas(c) {
     const r = c.getBoundingClientRect();
@@ -170,6 +261,7 @@
     $('term-size').textContent = `${term.cols}×${term.rows}`;
     sizeCanvas(traceCv);
     sizeCanvas(histCv);
+    if (turn) sizeCanvas(ldCv);
     Graph3D.resize();
     Scenes3D.City.resize();
     Scenes3D.Helix.resize();
@@ -381,6 +473,7 @@
         S.status = 'THINKING';
         log('prompt', 'PROMPT', e.text, e.ts);
         Scenes3D.Helix.add('PROMPT', e.text, null, 3, null, e.ts);
+        if (!replay) startTurn();
         node = 'session';
         weight = 2;
         energy = 0.6;
@@ -390,6 +483,7 @@
         break;
       case 'think':
         S.status = 'THINKING';
+        if (!replay && !turn) startTurn(); // a turn that began without a typed prompt (slash command, resume)
         break;
       case 'text':
         log('sys', 'REPLY', e.text, e.ts);
@@ -398,6 +492,11 @@
       case 'tool': {
         const cat = onTool(e);
         toolCat = cat;
+        if (!replay) {
+          if (!turn || turn.done) startTurn();
+          turn.steps++;
+          turn.last = (e.name.replace(/^mcp__.*__/, '') + ' ' + summary(e.input || {})).trim();
+        }
         node = CAT_NODE[cat];
         weight = cat === 'EDIT' ? 1.6 : 1;
         energy = cat === 'EDIT' || cat === 'AGENT' ? 0.45 : 0.28;
@@ -425,14 +524,21 @@
       case 'usage':
         onUsage(e);
         node = 'context';
+        if ((e.stop === 'end_turn' || e.stop === 'stop_sequence') && S.pending.size === 0) endTurn(false);
         break;
       case 'interrupt':
         S.pending.clear();
         S.status = 'AWAITING INPUT';
         log('err', 'INT', 'interrupted by user', e.ts);
+        endTurn(true);
         break;
       case 'system':
         log('sys', 'SYS', e.text, e.ts);
+        break;
+      case 'turn_end':
+        S.pending.clear();
+        S.status = 'AWAITING INPUT';
+        endTurn(false);
         break;
       default:
         return;
@@ -457,6 +563,11 @@
     replaying = !!replay;
     for (const e of events) handle(e, replay);
     replaying = false;
+    // a replayed history must not leave the dashboard "working"
+    if (replay && /^(THINKING|RUN)/.test(S.status)) {
+      S.pending.clear();
+      S.status = 'AWAITING INPUT';
+    }
     if (replay) log('sys', 'SYS', `replayed ${events.length} events from the resumed session`);
   });
 
@@ -468,6 +579,7 @@
       git = null;
       logEl.textContent = '';
       term.reset();
+      dropTurn();
       Graph3D.clear();
       Scenes3D.City.clear();
       Scenes3D.Helix.clear();
@@ -479,6 +591,7 @@
     if (s.status === 'exited') {
       S.status = 'EXITED';
       S.pending.clear();
+      endTurn(true);
       if (exitShownFor !== s.key) {
         exitShownFor = s.key;
         log('sys', 'SYS', `process exited (code ${s.exitCode})`);
@@ -581,6 +694,7 @@
     live.className = 'live' + (busy ? ' busy' : off ? ' off' : '');
     live.lastElementChild.textContent = S.status;
     $('term-node').classList.toggle('busy', busy);
+    updateLoader();
     Viz.Core.pending = S.pending.size;
     const g3 = Graph3D.stats;
     const pendingByCat = {};
@@ -817,6 +931,7 @@
     const now = Date.now();
     const up = session ? span(now - session.startedAt) : '00:00';
     $('s-time').textContent = up;
+    updateLoader();
     $('ses-up').textContent = up;
     const d = new Date(now);
     $('sub-right').textContent = `${norm(session ? session.cwd : info.cwd)}  ·  ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
@@ -834,6 +949,7 @@
     }
     Viz.Core.frame(now);
     Viz.Terrain.frame(now);
+    drawLoader(now);
   }
 
   let vizLast = 0;

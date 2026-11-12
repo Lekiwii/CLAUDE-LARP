@@ -41,6 +41,9 @@ is really doing.
 - **Patch cables and a generative field** that pulse when something actually happens: a spark runs
   down the cable of the panel concerned, and the background speeds up with activity and shifts in
   depth with the pointer. Values decode into place, counters roll, panels wipe in.
+- **A request loader that takes no room.** While Claude works, the thin line under the title bar
+  turns into a segmented loading bar: what it is doing, step count, elapsed time, and real progress
+  when a plan exists. The taskbar icon shows it too, and flashes when the answer is ready.
 - **Five themes:** `signal`, `phosphor`, `neon`, `amber`, `paper`. Cycle with the THEME button.
 - **Read-only by design.** The dashboard never writes to your project or to Claude Code's files, and
   nothing leaves your machine.
