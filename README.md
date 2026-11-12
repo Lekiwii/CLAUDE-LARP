@@ -65,7 +65,7 @@ If Claude Code is not installed, LARP opens a normal shell and shows the install
 ## Run from source
 
 ```bash
-git clone https://github.com/Lekiwii/larp.git
+git clone https://github.com/Lekiwii/CLAUDE-LARP.git larp
 cd larp
 npm install
 npm start
