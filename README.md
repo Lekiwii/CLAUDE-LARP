@@ -7,6 +7,8 @@ pseudo-terminal, so every feature, slash command, permission prompt and keybindi
 it does in your own terminal. Everything around it is a live dashboard that reacts to what the agent
 is really doing.
 
+![LARP, the repo as a spiral galaxy](docs/screenshot-galaxy.png)
+
 ![LARP, signal theme, terminal + 3D graph](docs/screenshot-signal.png)
 
 ![LARP, the repo as a 3D city](docs/screenshot-city.png)
@@ -25,7 +27,7 @@ is really doing.
 - **An interactive 3D graph of your repo**, in the spirit of Obsidian's graph view: folders and
   files as nodes, with a live link from the agent to every file it really reads or edits. Drag to
   orbit, drag a node to move it, wheel to zoom, **click a node to `@mention` it in the prompt**.
-- **Three more 3D scenes**, one tab each next to the graph:
+- **Four more 3D scenes**, one tab each next to the graph:
   - **CITY** — the repo as a city: one building per file, height = file size, folders as districts.
     Files the agent touches light up and fire a beam, and a marker flies to the one it is working
     on. Click a building to `@mention` the file.
@@ -33,6 +35,10 @@ is really doing.
     tool call, one lane per kind, a ring at each new turn.
   - **ORBIT** — tools as planets around the agent: size = calls so far, speed = recent activity,
     moons = calls running now, outer ring = how full the context window is.
+  - **GALAXY** — the whole repo as a spiral galaxy: every file a star (up to 3000), every top-level
+    folder an arm, the agent the bright core. A comet flies to each file it touches, a
+    constellation traces its path from file to file, and a new prompt sends a shockwave through
+    the disc. Click a star to `@mention` the file. The haze is decoration; the stars are your files.
 - **3D instruments:** a wireframe core that spins with activity (pending tool calls orbit it), a
   receding terrain of the last seconds of activity, and an extruded activity histogram.
 - **Panels fed by real data.** Tool calls, edited files with `+/−` line counts, the plan/todo list,
@@ -101,7 +107,7 @@ Linux `.AppImage`). Each platform has to be built on that platform.
 | `--demo`                    | Play a synthetic event stream (a `DEMO` badge is shown). Costs nothing: handy for recording a clip |
 | `--theme=<name>`            | Start with a given theme                                             |
 | `--view=<term\|split\|graph>` | Start in a given view                                              |
-| `--scene=<graph\|city\|helix\|orbit>` | Start on a given 3D scene                                  |
+| `--scene=<graph\|city\|helix\|orbit\|galaxy>` | Start on a given 3D scene                                  |
 | `--screenshot=<file.png>`   | Capture the window after a few seconds, then quit                    |
 | `--screenshot-delay=<ms>`   | How long to wait before the capture (default 7000)                   |
 | `--devtools`                | Open the developer tools                                             |
@@ -120,6 +126,7 @@ preload.js         The only bridge between the window and the main process
 src/app.js         Terminal (xterm.js) + all panels
 src/graph3d.js     The 3D force-directed repo graph (canvas, no 3D library)
 src/scenes3d.js    The city, helix and orbit scenes, and their shared orbit camera
+src/galaxy.js      The galaxy scene
 src/widgets.js     The 3D core and the activity terrain
 src/field.js       The generative thread/ray field (canvas)
 src/wires.js       The patch cables and their sparks (svg)
@@ -127,7 +134,8 @@ src/wires.js       The patch cables and their sparks (svg)
 
 The graph is built from a bounded, names-only listing of the folder (at most 320 entries, 4 levels
 deep, skipping `node_modules`, build output and dot-folders), so a huge repo costs the same as a
-small one.
+small one. The galaxy uses a deeper listing of the same kind (up to 3000 files, 8 levels), made only
+when that scene is on screen.
 
 A new session is started with `claude --session-id <uuid>`, so LARP knows exactly which transcript
 file belongs to it and never mixes it up with another Claude Code session open on the same folder.

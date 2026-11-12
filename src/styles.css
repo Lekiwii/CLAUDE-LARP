@@ -338,3 +338,7 @@ body.working #tagline { display: none; }
 #loader.stopped #ld-tag { color: var(--err); }
 #loader.stopped #ld-tag::before { background: var(--err); animation: none; }
 @media (prefers-reduced-motion: reduce) { #ld-tag::before { animation: none; } }
+
+/* v0.5: the galaxy scene */
+body[data-scene="galaxy"] #galaxy { display: block; }
+.tabs button { padding: 0 7px; }

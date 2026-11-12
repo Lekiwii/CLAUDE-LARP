@@ -815,5 +815,6 @@ const Scenes3D = (() => {
     return { init, set, kick, frame, resize: () => st.resize() };
   })();
 
-  return { setTheme, City, Helix, Orrery };
+  // makeStage and theme are shared with galaxy.js, which is a scene of its own file.
+  return { setTheme, City, Helix, Orrery, makeStage, theme };
 })();

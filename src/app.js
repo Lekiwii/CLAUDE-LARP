@@ -1,5 +1,5 @@
 'use strict';
-/* global Terminal, FitAddon, WebLinksAddon, Field, Wires, Graph3D, Scenes3D, Viz, larp */
+/* global Terminal, FitAddon, WebLinksAddon, Field, Wires, Graph3D, Scenes3D, Galaxy, Viz, larp */
 /*
  * Renderer: hosts the terminal and keeps every panel in sync with what the
  * session is really doing. All numbers on screen come from the session
@@ -38,7 +38,7 @@
   const BAR_CATS = ['READ', 'EDIT', 'SHELL', 'SEARCH', 'WEB', 'AGENT'];
   const STEP = 4; // px per column in the trace strip
   const VIEWS = ['term', 'split', 'graph'];
-  const SCENES = ['graph', 'city', 'helix', 'orbit'];
+  const SCENES = ['graph', 'city', 'helix', 'orbit', 'galaxy'];
   const GLYPHS = '#%&/<>[]{}=+*^?_-01';
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   /** Which side panel lights up for which kind of tool. */
@@ -266,6 +266,7 @@
     Scenes3D.City.resize();
     Scenes3D.Helix.resize();
     Scenes3D.Orrery.resize();
+    Galaxy.resize();
     Viz.Core.resize();
     Viz.Terrain.resize();
     drawTrace();
@@ -292,6 +293,7 @@
   Scenes3D.City.init($('city'), $('graph-tip'), { onPick: mention });
   Scenes3D.Helix.init($('helix'), $('graph-tip'), { onPick: mention });
   Scenes3D.Orrery.init($('orbit'), $('graph-tip'));
+  Galaxy.init($('galaxy'), $('graph-tip'), { onPick: mention });
   let layoutQueued = 0;
   const observer = new ResizeObserver(() => {
     cancelAnimationFrame(layoutQueued);
@@ -320,6 +322,7 @@
     scene = next;
     document.body.dataset.scene = next;
     $('graph-tip').hidden = true;
+    if (save && next === 'galaxy') deepScan();
     for (const b of document.querySelectorAll('#scene-tabs button')) b.classList.toggle('on', b.dataset.scene === next);
     if (save) larp.setScene(next);
     dirty = true;
@@ -337,11 +340,29 @@
       const { name, items } = await larp.scan();
       Graph3D.setTree(name, items);
       Scenes3D.City.setTree(name, items);
+      if (!galaxyDeep) Galaxy.setTree(name, items); // until the deep scan lands
+      if (scene === 'galaxy') deepScan();
       dirty = true;
     } catch {
       /* the folder went away; the graph keeps what it has */
     }
   }
+  /** The galaxy shows up to 3000 files: a deeper scan, only when that scene is on screen. */
+  let galaxyDeep = false;
+  let deepAt = 0;
+  async function deepScan() {
+    if (Date.now() - deepAt < 15000) return;
+    deepAt = Date.now();
+    try {
+      const { name, items } = await larp.scanDeep();
+      Galaxy.setTree(name, items);
+      galaxyDeep = true;
+      dirty = true;
+    } catch {
+      /* keep the quick map */
+    }
+  }
+
   let scanTimer = 0;
   const scanSoon = () => {
     clearTimeout(scanTimer);
@@ -402,6 +423,7 @@
     S.files.set(key, f);
     Graph3D.touch(key, { edit: !isRead, add, del, quiet: replaying });
     Scenes3D.City.touch(key, { edit: !isRead, add, del, quiet: replaying });
+    Galaxy.touch(key, { edit: !isRead, add, del, quiet: replaying });
   }
 
   function onTool(e) {
@@ -473,7 +495,10 @@
         S.status = 'THINKING';
         log('prompt', 'PROMPT', e.text, e.ts);
         Scenes3D.Helix.add('PROMPT', e.text, null, 3, null, e.ts);
-        if (!replay) startTurn();
+        if (!replay) {
+          startTurn();
+          Galaxy.warp(); // a shockwave through the disc
+        }
         node = 'session';
         weight = 2;
         energy = 0.6;
@@ -583,6 +608,9 @@
       Graph3D.clear();
       Scenes3D.City.clear();
       Scenes3D.Helix.clear();
+      Galaxy.clear();
+      galaxyDeep = false;
+      deepAt = 0;
       scan();
       log('sys', 'SYS', s.missing ? 'claude code not found: opened a shell instead' : `${s.mode === 'continue' ? 'continuing' : 'new session'} in ${shortPath(s.cwd)}`);
       Wires.pulse('session');
@@ -700,11 +728,13 @@
     const pendingByCat = {};
     for (const p of S.pending.values()) pendingByCat[p.cat] = (pendingByCat[p.cat] || 0) + 1;
     Scenes3D.Orrery.set({ cats: S.cats, pending: pendingByCat, ctx: S.ctx, window: S.ctx > 200000 ? 1000000 : 200000, agents: S.agents });
+    Galaxy.setAgents(S.agents);
     $('graph-n').textContent =
       scene === 'graph' ? `${g3.nodes} nodes · ${g3.touched} touched`
       : scene === 'city' ? `${Scenes3D.City.count} buildings · ${S.files.size} touched`
       : scene === 'helix' ? `${Scenes3D.Helix.count} events · ${S.turns} turns`
-      : `${S.tools} calls · ${S.pending.size} running`;
+      : scene === 'orbit' ? `${S.tools} calls · ${S.pending.size} running`
+      : `${Galaxy.count} stars · ${Galaxy.arms} arms · ${S.files.size} visited`;
 
     // repo
     const cwd = session ? session.cwd : info.cwd;
@@ -945,7 +975,8 @@
       if (scene === 'graph') Graph3D.frame(now);
       else if (scene === 'city') Scenes3D.City.frame(now);
       else if (scene === 'helix') Scenes3D.Helix.frame(now);
-      else Scenes3D.Orrery.frame(now);
+      else if (scene === 'orbit') Scenes3D.Orrery.frame(now);
+      else Galaxy.frame(now);
     }
     Viz.Core.frame(now);
     Viz.Terrain.frame(now);

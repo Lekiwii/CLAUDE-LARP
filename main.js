@@ -329,10 +329,11 @@ const SKIP_DIRS = new Set([
  * Breadth-first listing of the folder, bounded on every axis so a huge repo or
  * a home directory costs the same as a small one: shallow entries win.
  */
-async function scanRepo(root) {
-  const MAX_NODES = 320;
-  const MAX_PER_DIR = 36;
-  const MAX_DEPTH = 4;
+async function scanRepo(root, deep) {
+  // The graph and the city want a readable map; the galaxy wants as many stars as it can get.
+  const MAX_NODES = deep ? 3000 : 320;
+  const MAX_PER_DIR = deep ? 300 : 36;
+  const MAX_DEPTH = deep ? 8 : 4;
   const out = [];
   const queue = [{ dir: root, rel: '', depth: 0 }];
   while (queue.length && out.length < MAX_NODES) {
@@ -516,13 +517,14 @@ ipcMain.on('larp:view', (_e, v) => {
 });
 
 ipcMain.on('larp:scene', (_e, v) => {
-  if (['graph', 'city', 'helix', 'orbit'].includes(v)) {
+  if (['graph', 'city', 'helix', 'orbit', 'galaxy'].includes(v)) {
     cfg.scene = v;
     saveCfg();
   }
 });
 
 ipcMain.handle('larp:scan', () => scanRepo(session ? session.cwd : cfg.cwd || os.homedir()));
+ipcMain.handle('larp:scan-deep', () => scanRepo(session ? session.cwd : cfg.cwd || os.homedir(), true));
 
 // Taskbar feedback for the request in flight: 'busy' = working (indeterminate),
 // a 0..1 number = plan progress, 'done' = finished (flash if LARP is not in front).

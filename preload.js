@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld('larp', {
   setScene: (scene) => ipcRenderer.send('larp:scene', scene),
   progress: (state) => ipcRenderer.send('larp:progress', state),
   scan: () => ipcRenderer.invoke('larp:scan'),
+  scanDeep: () => ipcRenderer.invoke('larp:scan-deep'),
   copy: (text) => ipcRenderer.send('larp:clipboard-write', text),
   openExternal: (url) => ipcRenderer.send('larp:open-external', url),
   onData: subscribe('larp:pty-data'),
