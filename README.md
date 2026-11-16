@@ -58,9 +58,18 @@ is really doing.
 
 - [Claude Code](https://claude.com/claude-code) installed and signed in. LARP uses **your own**
   login: it ships no account, no API key and no model access of its own.
-- [Node.js](https://nodejs.org) 20 or newer (to run from source).
+- [Node.js](https://nodejs.org) 20 or newer, only if you run from source.
 
 If Claude Code is not installed, LARP opens a normal shell and shows the install command.
+
+## Install (Windows)
+
+Download `LARP-Setup-x.y.z.exe` from the
+[Releases page](https://github.com/Lekiwii/CLAUDE-LARP/releases) and run it. No Node.js needed.
+
+The installer is not code-signed, so Windows SmartScreen may show "Windows protected your PC" the
+first time: click **More info**, then **Run anyway**. If you would rather not, run from source
+instead, below.
 
 ## Run from source
 

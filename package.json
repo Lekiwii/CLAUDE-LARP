@@ -35,15 +35,25 @@
   "build": {
     "appId": "dev.larp.agentcontrol",
     "productName": "LARP",
+    "files": [
+      "main.js",
+      "preload.js",
+      "lib/**/*",
+      "src/**/*",
+      "package.json"
+    ],
     "asarUnpack": [
       "node_modules/node-pty/**"
     ],
+    "npmRebuild": false,
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "build/icon.png"
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "LARP-Setup-${version}.${ext}"
     },
     "mac": {
       "target": "dmg",
