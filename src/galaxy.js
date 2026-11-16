@@ -1,5 +1,5 @@
 'use strict';
-/* global Scenes3D */
+/* global Scenes3D, Palette */
 /*
  * GALAXY — the whole repo as a spiral galaxy.
  *
@@ -107,8 +107,9 @@ const Galaxy = (() => {
     byPath = new Map();
     arms = [];
     filaments = [];
-    const add = (f, x, y, z) => {
+    const add = (f, x, y, z, arm) => {
       const s = {
+        arm, // index of its spiral arm, -1 in the bulge
         path: f.p,
         name: f.p.slice(f.p.lastIndexOf('/') + 1),
         size: f.s || 0,
@@ -126,7 +127,7 @@ const Galaxy = (() => {
       const r = rng(hash(f.p));
       const rad = 4 + Math.abs(gauss(r)) * 16;
       const a = r() * TAU;
-      add(f, Math.cos(a) * rad, gauss(r) * 7, Math.sin(a) * rad);
+      add(f, Math.cos(a) * rad, gauss(r) * 7, Math.sin(a) * rad, -1);
     }
 
     list.forEach((arm, k) => {
@@ -144,7 +145,7 @@ const Galaxy = (() => {
         const rad = 18 + u * 118 + lateral;
         const th = phi + u * TWIST + gauss(r) * 0.03;
         const y = (clump() - 0.5) * 7 + gauss(r) * 3 * (1 - u * 0.5);
-        const s = add(f, Math.cos(th) * rad, y, Math.sin(th) * rad);
+        const s = add(f, Math.cos(th) * rad, y, Math.sin(th) * rad, k);
         if (prev && prevDir === dir) filaments.push(prev, s);
         prev = s;
         prevDir = dir;
@@ -172,11 +173,14 @@ const Galaxy = (() => {
   function makeHaze(A) {
     const r = rng(20261112);
     // Three brightness tiers, each drawn in one pass (one alpha change per tier, not per particle).
-    const tiers = [[], [], []];
+    // One group per arm, plus a last neutral group (bulge and scatter): a colour-coded theme
+    // gives each arm its own colour.
+    const groups = Array.from({ length: A + 1 }, () => [[], [], []]);
     const N = 6400;
     for (let i = 0; i < N; i++) {
       const roll = r();
       let x, y, z, tier;
+      let group = A;
       if (roll < 0.2) {
         // the bulge
         const rad = Math.abs(gauss(r)) * 21;
@@ -188,6 +192,7 @@ const Galaxy = (() => {
       } else if (roll < 0.92) {
         // the arms: dense along the centre line, thinning outwards
         const k = Math.floor(r() * A);
+        group = k;
         const u = Math.pow(r(), 0.75);
         const rad = 15 + u * 128 + gauss(r) * 8 * (0.5 + u);
         const th = (k / A) * TAU + u * TWIST + gauss(r) * 0.07;
@@ -204,9 +209,9 @@ const Galaxy = (() => {
         y = gauss(r) * 5;
         tier = 0;
       }
-      tiers[tier].push(x, y, z);
+      groups[group][tier].push(x, y, z);
     }
-    dust = tiers.map((t) => new Float32Array(t));
+    dust = groups.map((tiers) => tiers.map((t) => new Float32Array(t)));
 
     // soft clouds strung along each arm
     clouds = [];
@@ -215,7 +220,7 @@ const Galaxy = (() => {
         const u = j / 6.4 + (r() - 0.5) * 0.08;
         const rad = 15 + u * 128;
         const th = (k / A) * TAU + u * TWIST;
-        clouds.push({ x: Math.cos(th) * rad, z: Math.sin(th) * rad, size: 20 + r() * 16 - u * 6, a: 0.085 - u * 0.03 });
+        clouds.push({ k, x: Math.cos(th) * rad, z: Math.sin(th) * rad, size: 20 + r() * 16 - u * 6, a: 0.085 - u * 0.03 });
       }
     }
     const F = 240;
@@ -279,6 +284,9 @@ const Galaxy = (() => {
     const ink = `rgb(${theme.ink})`;
     const hot = `rgb(${theme.hot})`;
     const core = P(0, 0, 0);
+    // colour-coded themes: each arm (each top-level folder) takes one of the theme's channel colours
+    const coded = Palette.on;
+    const armHue = (k) => Palette.pick(k);
 
     // far background stars (only the ones behind the disc)
     g.fillStyle = ink;
@@ -304,22 +312,26 @@ const Galaxy = (() => {
       const p = P(c.x, 0, c.z);
       const rad = c.size * st.scale * p[2];
       const cg = g.createRadialGradient(p[0], p[1], 0, p[0], p[1], rad);
-      cg.addColorStop(0, `rgba(${theme.ink},${c.a * (1 + energy)})`);
-      cg.addColorStop(1, `rgba(${theme.ink},0)`);
+      const tint = coded ? armHue(c.k) : theme.ink;
+      cg.addColorStop(0, `rgba(${tint},${c.a * (coded ? 1.5 : 1) * (1 + energy)})`);
+      cg.addColorStop(1, `rgba(${tint},0)`);
       g.fillStyle = cg;
       g.fillRect(p[0] - rad, p[1] - rad, rad * 2, rad * 2);
     }
 
     const lift = 1 + energy * 0.6;
     const px = Math.max(1.2, Math.min(2.6, st.scale * 0.55));
-    for (let tier = 0; tier < 3; tier++) {
-      const d = dust[tier];
-      g.fillStyle = tier === 2 ? hot : ink;
-      g.globalAlpha = Math.min(1, [0.2, 0.36, 0.62][tier] * lift);
-      const size = px * (tier === 2 ? 1.25 : 1);
-      for (let i = 0; i < d.length; i += 3) {
-        const p = P(d[i], d[i + 1], d[i + 2]);
-        g.fillRect(p[0], p[1], size, size);
+    for (let k = 0; k < dust.length; k++) {
+      const tint = coded && k < dust.length - 1 ? `rgb(${armHue(k)})` : null;
+      for (let tier = 0; tier < 3; tier++) {
+        const d = dust[k][tier];
+        g.fillStyle = tint || (tier === 2 ? hot : ink);
+        g.globalAlpha = Math.min(1, [0.2, 0.36, 0.62][tier] * lift * (tint ? 1.3 : 1));
+        const size = px * (tier === 2 ? 1.25 : 1);
+        for (let i = 0; i < d.length; i += 3) {
+          const p = P(d[i], d[i + 1], d[i + 2]);
+          g.fillRect(p[0], p[1], size, size);
+        }
       }
     }
     g.globalCompositeOperation = 'source-over';
@@ -374,11 +386,16 @@ const Galaxy = (() => {
     const zoomBoost = Math.min(2.2, 0.75 + st.zoom * 0.25);
     const visited = [];
     g.fillStyle = ink;
+    let tintedArm = -2; // stars are stored arm by arm, so the colour changes only a few times
     for (const s of stars) {
       const info = stats.get(s.path);
       if (info) {
         visited.push([s, info]);
         continue;
+      }
+      if (coded && s.arm !== tintedArm) {
+        tintedArm = s.arm;
+        g.fillStyle = s.arm < 0 ? ink : `rgb(${armHue(s.arm)})`;
       }
       const tw = reduced ? 1 : 0.75 + 0.25 * Math.sin(t * 1.7 + s.tw);
       const size = s.r * s.k * zoomBoost * 1.45;
@@ -528,8 +545,10 @@ const Galaxy = (() => {
     // labels: the arms, what was just touched, what is under the pointer
     g.textBaseline = 'middle';
     g.fillStyle = `rgba(${theme.ink},0.6)`;
-    for (const arm of arms) {
+    for (let k = 0; k < arms.length; k++) {
+      const arm = arms[k];
       if (!arm.name) continue;
+      if (coded) g.fillStyle = `rgba(${armHue(k)},0.95)`;
       const q = P(arm.x, 0, arm.z);
       g.fillText(`${arm.name.toUpperCase().slice(0, 18)} · ${arm.n}`, q[0] + 5, q[1]);
     }

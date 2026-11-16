@@ -119,21 +119,22 @@ const Field = (() => {
     for (let i = 0; i < 46; i++) spawn(false);
   }
 
-  function spawn(isHot) {
+  function spawn(isHot, rgb) {
     if (!threads.length) return;
     parts.push({
       th: threads[(Math.random() * threads.length) | 0],
       u: isHot ? rand(0, 0.35) : Math.random(),
       sp: isHot ? rand(0.45, 1.1) : rand(0.04, 0.16),
       hot: isHot,
+      rgb: rgb || null, // colour of the panel the event belongs to, in a colour-coded theme
     });
   }
 
-  /** A real session event happened: 0..1 intensity. */
-  function burst(amount) {
+  /** A real session event happened: 0..1 intensity, and optionally the colour of its panel. */
+  function burst(amount, rgb) {
     energy = Math.min(1, energy + (amount || 0.3));
     const k = Math.round(26 * (amount || 0.3) + 8);
-    for (let i = 0; i < k && parts.length < 700; i++) spawn(true);
+    for (let i = 0; i < k && parts.length < 700; i++) spawn(true, rgb);
   }
 
   /** Terminal output is streaming: a light nudge. */
@@ -168,18 +169,18 @@ const Field = (() => {
     ctx.globalCompositeOperation = blend;
     ctx.lineWidth = 0.6;
 
+    const trace = (th) => {
+      const w = wobble(th, t);
+      const ox = shiftX * th.z;
+      const oy = shiftY * th.z;
+      ctx.moveTo(th.ax + ox * 1.3, th.ay + oy * 1.3);
+      ctx.bezierCurveTo(th.c1x + ox, th.c1y + w + oy, th.c2x + ox * 0.4, th.c2y - w * 0.6 + oy * 0.4, th.tx, th.ty);
+    };
     // threads, batched by brightness tier
     const alpha = [0.07, 0.12, 0.19];
     for (let tier = 0; tier < 4; tier++) {
       ctx.beginPath();
-      for (const th of threads) {
-        if (th.tier !== tier) continue;
-        const w = wobble(th, t);
-        const ox = shiftX * th.z;
-        const oy = shiftY * th.z;
-        ctx.moveTo(th.ax + ox * 1.3, th.ay + oy * 1.3);
-        ctx.bezierCurveTo(th.c1x + ox, th.c1y + w + oy, th.c2x + ox * 0.4, th.c2y - w * 0.6 + oy * 0.4, th.tx, th.ty);
-      }
+      for (const th of threads) if (th.tier === tier) trace(th);
       ctx.strokeStyle = tier === 3 ? `rgba(${hot},${0.3 + energy * 0.5})` : `rgba(${ink},${alpha[tier] * (1 + energy * 1.3)})`;
       ctx.lineWidth = tier === 3 ? 0.9 : 0.6;
       ctx.stroke();
@@ -247,7 +248,7 @@ const Field = (() => {
       const x = v * v * v * (th.ax + ox * 1.3) + 3 * v * v * u * (th.c1x + ox) + 3 * v * u * u * (th.c2x + ox * 0.4) + u * u * u * th.tx;
       const y = v * v * v * (th.ay + oy * 1.3) + 3 * v * v * u * (th.c1y + w + oy) + 3 * v * u * u * (th.c2y - w * 0.6 + oy * 0.4) + u * u * u * th.ty;
       if (p.hot) {
-        ctx.fillStyle = `rgba(${hot},0.95)`;
+        ctx.fillStyle = `rgba(${p.rgb || hot},0.95)`;
         ctx.fillRect(x - 1.2, y - 1.2, 2.4, 2.4);
       } else {
         ctx.fillStyle = `rgba(${ink},0.55)`;

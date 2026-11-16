@@ -76,6 +76,15 @@ const Wires = (() => {
         svg.appendChild(path);
         // a slow bead of light always travelling the cable, in the data's direction
         const flow = make('path', { class: 'flow', d });
+        if (Palette.on) {
+          // colour-coded themes: a cable takes the colour of the panel it belongs to
+          const colour = getComputedStyle(o.node).getPropertyValue('--hdr').trim();
+          if (colour) {
+            path.style.stroke = colour;
+            path.style.strokeOpacity = '0.6';
+            flow.style.stroke = colour;
+          }
+        }
         flow.style.animationDelay = `${-(i * 0.37) % 2.4}s`;
         svg.appendChild(flow);
         svg.appendChild(make('circle', { class: 'jack', cx: edge, cy: ty, r: 2.6 }));

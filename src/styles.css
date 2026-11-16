@@ -342,3 +342,10 @@ body.working #tagline { display: none; }
 /* v0.5: the galaxy scene */
 body[data-scene="galaxy"] #galaxy { display: block; }
 .tabs button { padding: 0 7px; }
+
+/* ================= v0.6.1: colour channels =================
+   Colour means something in the dark themes: each side panel has a colour (its header), and the
+   same colours code its cable, the folders in the graph, the arms of the galaxy and the kinds of
+   tool on the terrain. The palette is each theme's own --h1..--h7, read by src/palette.js. */
+body { --channels: 1; }
+body[data-theme="paper"] { --channels: 0; } /* one ink only: nothing to code with */

@@ -1,5 +1,5 @@
 'use strict';
-/* global Terminal, FitAddon, WebLinksAddon, Field, Wires, Graph3D, Scenes3D, Galaxy, Viz, larp */
+/* global Terminal, FitAddon, WebLinksAddon, Field, Wires, Graph3D, Scenes3D, Galaxy, Viz, Palette, larp */
 /*
  * Renderer: hosts the terminal and keeps every panel in sync with what the
  * session is really doing. All numbers on screen come from the session
@@ -375,6 +375,7 @@
   function applyTheme(name, announce) {
     theme = name;
     document.body.dataset.theme = name;
+    Palette.refresh();
     term.options.theme = termTheme();
     Field.setTheme();
     Graph3D.setTheme();
@@ -382,8 +383,7 @@
     Viz.setTheme();
     $('b-theme').textContent = 'THEME: ' + name;
     if (announce) larp.setTheme({ name, bg: css('--bg'), fg: css('--dim') });
-    drawTrace();
-    drawHist();
+    relayout();
     dirty = true;
   }
   applyTheme(theme, true);
@@ -574,7 +574,7 @@
     stamps.push(Date.now());
     buckets[buckets.length - 1]++;
     traceWeight += weight;
-    Field.burst(energy);
+    Field.burst(energy, node ? Palette.ofNode(node) : null);
     Viz.Core.hit(energy);
     if (toolCat) Scenes3D.Orrery.kick(toolCat);
     if (toolCat) Viz.Terrain.add(toolCat, weight * 2);

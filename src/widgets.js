@@ -202,8 +202,23 @@ const Viz = (() => {
         g.lineTo(x0 + width, y0);
         g.fillStyle = theme.bg;
         g.fill();
-        g.strokeStyle = `rgba(${r <= 0 ? theme.hot : theme.ink},${0.95 - 0.78 * t})`;
-        g.stroke();
+        if (Palette.on) {
+          // colour-coded themes: each kind of tool keeps one flat colour along its lane of the ridge
+          const grad = g.createLinearGradient(x0, 0, x0 + width, 0);
+          for (let s = 0; s < TAGS.length; s++) {
+            const from = s ? (TAGS[s - 1][1] + TAGS[s][1]) / 2 : 0;
+            const to = s < TAGS.length - 1 ? (TAGS[s][1] + TAGS[s + 1][1]) / 2 : 1;
+            grad.addColorStop(from, `rgb(${Palette.pick(s)})`);
+            grad.addColorStop(to, `rgb(${Palette.pick(s)})`);
+          }
+          g.globalAlpha = 1 - 0.8 * t;
+          g.strokeStyle = grad;
+          g.stroke();
+          g.globalAlpha = 1;
+        } else {
+          g.strokeStyle = `rgba(${r <= 0 ? theme.hot : theme.ink},${0.95 - 0.78 * t})`;
+          g.stroke();
+        }
       }
 
       g.font = `8px ${theme.font}`;

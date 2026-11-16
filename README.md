@@ -51,6 +51,9 @@ is really doing.
   turns into a segmented loading bar: what it is doing, step count, elapsed time, and real progress
   when a plan exists. The taskbar icon shows it too, and flashes when the answer is ready.
 - **Five themes:** `signal`, `phosphor`, `neon`, `amber`, `paper`. Cycle with the THEME button.
+- **Colour that means something.** In the dark themes each side panel has a colour, and the same
+  colours code its cable, each top-level folder in the graph, each arm of the galaxy and each kind
+  of tool on the activity terrain. The palette is the theme's own.
 - **Read-only by design.** The dashboard never writes to your project or to Claude Code's files, and
   nothing leaves your machine.
 

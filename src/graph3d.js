@@ -69,6 +69,14 @@ const Graph3D = (() => {
       reads: 0, edits: 0, add: 0, del: 0, seen: 0, state: null,
       sx: 0, sy: 0, ss: 1, links: [],
     };
+    // colour-coded themes: everything under one top-level folder shares that folder's colour
+    if (kind === 'file' || kind === 'dir') {
+      if (parent === root) {
+        let sum = 0;
+        for (let i = 0; i < label.length; i++) sum += label.charCodeAt(i);
+        n.hue = (sum % 8) / 7;
+      } else n.hue = parent ? parent.hue : null;
+    }
     nodes.push(n);
     byId.set(id, n);
     if (parent) link(parent, n, 'tree');
@@ -215,6 +223,9 @@ const Graph3D = (() => {
     return [W / 2 + x1 * scale * k, H / 2 + y2 * scale * k, k];
   }
 
+  /** The colour a node draws in: its folder's channel colour in a colour-coded theme, plain ink otherwise. */
+  const tint = (n) => (Palette.on && n.hue != null ? Palette.rgb(n.hue) : ink);
+
   function nodeRadius(n) {
     if (n.kind === 'agent') return 7 * n.ss;
     if (n.kind === 'root') return 4.5 * n.ss;
@@ -277,7 +288,8 @@ const Graph3D = (() => {
       const age = now - e.hotAt;
       if (e.kind === 'link' && age < 2600) al = 0.95 - 0.7 * (age / 2600);
       if (hover && !lit) al *= 0.35;
-      ctx.strokeStyle = lit ? `rgba(${hot},0.95)` : `rgba(${e.kind === 'link' ? hot : ink},${al})`;
+      if (e.kind === 'tree' && Palette.on) al = Math.min(1, al * 1.9);
+      ctx.strokeStyle = lit ? `rgba(${hot},0.95)` : `rgba(${e.kind === 'link' ? hot : tint(b)},${al})`;
       ctx.lineWidth = lit ? 1.2 : e.kind === 'link' ? 0.9 : 0.6;
       ctx.beginPath();
       ctx.moveTo(a.sx, a.sy);
@@ -314,7 +326,7 @@ const Graph3D = (() => {
         ctx.strokeStyle = `rgba(${hot},${al})`;
         ctx.strokeRect(n.sx - r, n.sy - r, r * 2, r * 2);
       } else if (n.kind === 'dir') {
-        ctx.strokeStyle = `rgba(${ink},${al})`;
+        ctx.strokeStyle = `rgba(${tint(n)},${al})`;
         ctx.beginPath(); ctx.arc(n.sx, n.sy, r, 0, 6.2832); ctx.stroke();
       } else if (n.kind === 'sub') {
         ctx.strokeStyle = n.state === 'failed' ? err : n.state === 'done' ? ok : warn;
@@ -324,7 +336,7 @@ const Graph3D = (() => {
         ctx.closePath(); ctx.stroke();
         ctx.globalAlpha = 1;
       } else {
-        ctx.fillStyle = `rgba(${touched ? hot : ink},${touched ? Math.max(al, 0.85 * dim) : al * 0.8})`;
+        ctx.fillStyle = `rgba(${touched ? hot : tint(n)},${touched ? Math.max(al, 0.85 * dim) : al * (Palette.on ? 1 : 0.8)})`;
         ctx.beginPath(); ctx.arc(n.sx, n.sy, r, 0, 6.2832); ctx.fill();
         if (n.edits) {
           ctx.strokeStyle = ok;

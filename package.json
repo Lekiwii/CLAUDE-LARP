@@ -1,7 +1,7 @@
 {
   "name": "larp",
   "productName": "LARP",
-  "version": "0.5.0",
+  "version": "0.6.1",
   "description": "A cinematic agent control room wrapped around the real Claude Code CLI.",
   "main": "main.js",
   "scripts": {
